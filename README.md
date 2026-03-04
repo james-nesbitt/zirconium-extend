@@ -24,4 +24,18 @@ just run
 
 ### Automation
 
-A GitHub workflow is configured to automatically build and push the image daily or on push to the `main` branch.
+A GitHub workflow is configured to automatically build and push the image daily or on push to the `master` branch.
+
+### Bootc System Updates
+
+This project builds a bootable OCI image (bootc) that is published daily. You can switch your currently running system to use this image, or upgrade it if you are already using it.
+
+**Switch your system to this image:**
+```bash
+sudo bootc switch ghcr.io/james-nesbitt/zirconium-extend:latest
+```
+
+**Upgrade to the latest daily build:**
+```bash
+sudo bootc upgrade
+```
