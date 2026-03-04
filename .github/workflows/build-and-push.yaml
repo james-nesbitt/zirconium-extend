@@ -2,10 +2,10 @@ name: Build and Push OCI Image
 
 on:
   schedule:
-    - cron: '0 0 * * *' # Daily at midnight
+    - cron: '0 0 * * *'  # Daily at midnight
   push:
     branches:
-      - main
+      - master
   workflow_dispatch:
 
 env:
@@ -30,14 +30,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for OCI
+      - name: Extract metadata (tags, labels) for OCI image
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=sha,format=short
+            type=schedule
+            type=ref,event=branch
+            type=sha,format=long
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
 
       - name: Build and push OCI image
         uses: docker/build-push-action@v5
