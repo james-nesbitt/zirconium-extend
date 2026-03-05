@@ -4,16 +4,21 @@ FROM ghcr.io/zirconium-dev/zirconium:latest
 RUN dnf -y --enablerepo copr:copr.fedorainfracloud.org:yalter:niri-git \
            --enablerepo copr:copr.fedorainfracloud.org:avengemedia:dms-git \
            --enablerepo copr:copr.fedorainfracloud.org:avengemedia:danklinux \
-           upgrade -y
+           upgrade -y \
+ && dnf -y --enablerepo copr:copr.fedorainfracloud.org:yalter:niri-git \
+           --enablerepo copr:copr.fedorainfracloud.org:avengemedia:dms-git \
+           --enablerepo copr:copr.fedorainfracloud.org:avengemedia:danklinux \
+           clean -y all
 
-RUN dnf install --enablerepo=terra -y @virtualization
+RUN dnf --enablerepo=terra install -y @virtualization \
+ && dnf --enablerepo=terra clean -y all
 
-RUN dnf install --enablerepo=terra -y containerd ghostty nvim rootlesskit zsh
+RUN dnf --enablerepo=terra install -y containerd cliphist ghostty nvim rootlesskit zsh \
+ && dnf --enablerepo=terra clean -y all
 
 # Maintain labels
 LABEL org.opencontainers.image.source="https://github.com/zirconium-dev/zirconium-extend"
 LABEL org.opencontainers.image.description="Extended zirconium OCI image"
-
 
 # OS Release File (changed in order with upstream)
 # TODO: change ANSI_COLOR
