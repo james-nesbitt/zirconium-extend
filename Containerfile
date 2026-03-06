@@ -13,7 +13,7 @@ RUN dnf -y --enablerepo copr:copr.fedorainfracloud.org:yalter:niri-git \
 RUN dnf --enablerepo=terra install -y @virtualization \
  && dnf --enablerepo=terra clean -y all
 
-RUN dnf --enablerepo=terra install -y containerd cliphist ghostty nvim rootlesskit zsh \
+RUN dnf --enablerepo=terra install -y containerd cliphist ghostty nvim rootlesskit zsh alacritty \
  && dnf --enablerepo=terra clean -y all
 
 # Maintain labels
