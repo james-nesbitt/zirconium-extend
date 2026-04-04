@@ -7,15 +7,6 @@ RUN dnf --enablerepo=terra install -y containerd cliphist ghostty nvim rootlessk
 RUN dnf --enablerepo=terra install -y @virtualization \
  && dnf --enablerepo=terra clean -y all
 
-RUN dnf -y --enablerepo copr:copr.fedorainfracloud.org:yalter:niri-git \
-           --enablerepo copr:copr.fedorainfracloud.org:avengemedia:dms-git \
-           --enablerepo copr:copr.fedorainfracloud.org:avengemedia:danklinux \
-           upgrade -y \
- && dnf -y --enablerepo copr:copr.fedorainfracloud.org:yalter:niri-git \
-           --enablerepo copr:copr.fedorainfracloud.org:avengemedia:dms-git \
-           --enablerepo copr:copr.fedorainfracloud.org:avengemedia:danklinux \
-           clean -y all
-
 # Maintain labels
 LABEL org.opencontainers.image.source="https://github.com/zirconium-dev/zirconium-extend"
 LABEL org.opencontainers.image.description="Extended zirconium OCI image"
@@ -32,3 +23,4 @@ RUN KERNEL_VERSION="$(find "/usr/lib/modules" -maxdepth 1 -type d ! -path "/usr/
     chmod 0600 "/usr/lib/modules/${KERNEL_VERSION}/initramfs.img"
 
 RUN rm -rf /var/* && mkdir /var/tmp && bootc container lint
+
