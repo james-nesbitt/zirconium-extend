@@ -26,17 +26,40 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Extract metadata (tags, labels) for OCI image
+      - name: Compute image tags and labels
         id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=nightly,enable=${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
-            type=ref,event=branch,enable=${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' }}
-            type=ref,event=pr,enable=${{ github.event_name == 'pull_request' }}
-            type=sha,format=long,enable=${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' }}
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' && github.event_name == 'push' }}
+        shell: bash
+        run: |
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          TAGS=""
+          case "${{ github.event_name }}" in
+            schedule|workflow_dispatch)
+              TAGS="${IMAGE}:nightly"
+              ;;
+            push)
+              BRANCH="${{ github.ref_name }}"
+              BRANCH="${BRANCH//\//-}"
+              SHA="${{ github.sha }}"
+              TAGS="${IMAGE}:${BRANCH} ${IMAGE}:sha-${SHA}"
+              if [[ "${{ github.ref }}" == "refs/heads/master" ]]; then
+                TAGS="${TAGS} ${IMAGE}:latest"
+              fi
+              ;;
+            pull_request)
+              PR="${{ github.event.pull_request.number }}"
+              BRANCH="${{ github.head_ref }}"
+              BRANCH="${BRANCH//\//-}"
+              SHA="${{ github.event.pull_request.head.sha }}"
+              TAGS="${IMAGE}:pr-${PR} ${IMAGE}:${BRANCH} ${IMAGE}:sha-${SHA}"
+              ;;
+          esac
+          # newline-separated for buildah-build, space-separated for display
+          printf 'tags<<EOF\n%s\nEOF\n' "$(echo $TAGS | tr ' ' '\n')" >> "$GITHUB_OUTPUT"
+          # OCI standard labels
+          printf 'labels<<EOF\n%s\nEOF\n' "\
+          org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          org.opencontainers.image.revision=${{ github.sha }}
+          org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
       - name: Build OCI image
         id: build
