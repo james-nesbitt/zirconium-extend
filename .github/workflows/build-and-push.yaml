@@ -32,10 +32,11 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=schedule
-            type=ref,event=branch
-            type=sha,format=long
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
+            type=schedule,enable=${{ github.event_name == 'schedule' }}
+            type=ref,event=branch,enable=${{ github.event_name != 'schedule' }}
+            type=ref,event=pr,enable=${{ github.event_name == 'pull_request' }}
+            type=sha,format=long,enable=${{ github.event_name != 'schedule' }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' && github.event_name != 'schedule' }}
 
       - name: Build OCI image
         id: build
@@ -48,7 +49,6 @@ jobs:
           oci: true
 
       - name: Push OCI image
-        if: github.event_name != 'pull_request'
         uses: redhat-actions/push-to-registry@v2
         with:
           image: ${{ steps.build.outputs.image }}
