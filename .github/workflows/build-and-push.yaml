@@ -38,6 +38,7 @@ jobs:
               ;;
             push)
               BRANCH="${{ github.ref_name }}"
+              BRANCH="${BRANCH//\//-}"
               SHA="${{ github.sha }}"
               TAGS="${IMAGE}:${BRANCH} ${IMAGE}:sha-${SHA}"
               if [[ "${{ github.ref }}" == "refs/heads/master" ]]; then
@@ -47,6 +48,7 @@ jobs:
             pull_request)
               PR="${{ github.event.pull_request.number }}"
               BRANCH="${{ github.head_ref }}"
+              BRANCH="${BRANCH//\//-}"
               SHA="${{ github.event.pull_request.head.sha }}"
               TAGS="${IMAGE}:pr-${PR} ${IMAGE}:${BRANCH} ${IMAGE}:sha-${SHA}"
               ;;
