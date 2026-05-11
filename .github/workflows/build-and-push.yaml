@@ -32,7 +32,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=schedule,enable=${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+            type=raw,value=nightly,enable=${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
             type=ref,event=branch,enable=${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' }}
             type=ref,event=pr,enable=${{ github.event_name == 'pull_request' }}
             type=sha,format=long,enable=${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' }}
