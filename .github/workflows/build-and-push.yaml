@@ -51,8 +51,6 @@ jobs:
       - name: Push OCI image
         uses: redhat-actions/push-to-registry@v2
         with:
-          image: ${{ steps.build.outputs.image }}
           tags: ${{ steps.build.outputs.tags }}
-          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
