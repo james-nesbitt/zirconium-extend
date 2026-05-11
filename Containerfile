@@ -12,9 +12,7 @@ LABEL org.opencontainers.image.source="https://github.com/zirconium-dev/zirconiu
 LABEL org.opencontainers.image.description="Extended zirconium OCI image"
 
 # OS Release File (changed in order with upstream)
-RUN sed -i -f - /usr/lib/os-release <<EOF
-s|^VERSION_CODENAME=.*|VERSION_CODENAME=\"jnesbitt\"|
-EOF
+RUN sed -i 's|^VERSION_CODENAME=.*|VERSION_CODENAME="jnesbitt"|' /usr/lib/os-release
 
 # rebuild of initramfs might be needed if we upgraded the kernel
 RUN KERNEL_VERSION="$(find "/usr/lib/modules" -maxdepth 1 -type d ! -path "/usr/lib/modules" -exec basename '{}' ';' | sort | tail -n 1)"; \
