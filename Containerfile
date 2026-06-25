@@ -7,6 +7,12 @@ RUN dnf --enablerepo=terra install -y containerd cliphist ghostty nvim rootlessk
 RUN dnf --enablerepo=terra install -y @virtualization \
  && dnf --enablerepo=terra clean -y all
 
+# Install wezterm from upstream COPR (not available in terra)
+RUN curl -fsSL https://copr.fedorainfracloud.org/coprs/wezfurlong/wezterm-nightly/repo/fedora-$(rpm -E %fedora)/wezfurlong-wezterm-nightly-fedora-$(rpm -E %fedora).repo \
+    -o /etc/yum.repos.d/wezterm-nightly.repo \
+ && dnf install -y wezterm \
+ && dnf clean all
+
 # Maintain labels
 LABEL org.opencontainers.image.source="https://github.com/zirconium-dev/zirconium-extend"
 LABEL org.opencontainers.image.description="Extended zirconium OCI image"
