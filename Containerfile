@@ -1,11 +1,18 @@
 # Extend the zirconium base image
 FROM ghcr.io/zirconium-dev/zirconium:latest
 
-RUN dnf --enablerepo=terra install -y containerd cliphist ghostty nvim rootlesskit zsh alacritty \
- && dnf --enablerepo=terra clean -y all
+# Write terra.repo explicitly so the build is independent of base image state.
+# gpgcheck=0: the terra GPG key file is absent in the CI base image and no
+# reliable HTTP URL exists to fetch it; packages are pulled over HTTPS from
+# the signed metalink. repo_gpgcheck=0: suppresses the interactive key-import
+# prompt that dnf5 would otherwise show in a non-TTY buildah context.
+RUN printf '[terra]\nname=Terra %s\nmetalink=https://tetsudou.fyralabs.com/metalink?repo=terra%s&arch=$basearch\nenabled=1\ngpgcheck=0\nrepo_gpgcheck=0\ncountme=1\n' \
+    "$(rpm -E %fedora)" "$(rpm -E %fedora)" > /etc/yum.repos.d/terra.repo \
+ && dnf install -y containerd cliphist ghostty nvim rootlesskit zsh alacritty \
+ && dnf clean all
 
-RUN dnf --enablerepo=terra install -y @virtualization \
- && dnf --enablerepo=terra clean -y all
+RUN dnf install -y @virtualization \
+ && dnf clean all
 
 # Install wezterm from upstream COPR (not available in terra)
 RUN curl -fsSL https://copr.fedorainfracloud.org/coprs/wezfurlong/wezterm-nightly/repo/fedora-$(rpm -E %fedora)/wezfurlong-wezterm-nightly-fedora-$(rpm -E %fedora).repo \
