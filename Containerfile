@@ -20,6 +20,23 @@ RUN curl -fsSL https://copr.fedorainfracloud.org/coprs/wezfurlong/wezterm-nightl
  && dnf install -y wezterm \
  && dnf clean all
 
+# Cato Networks SDP client (VPN). Verified /usr-only payload (rpm -ql cato_client-5.8.1-7658):
+# /usr/lib/cato, /usr/bin/cato-sdp, /usr/sbin/{cato-clientd,cato-demd}, /etc/ld.so.conf.d and a
+# CA anchor — nothing in /opt, so no relocation is needed on an ostree root where /opt is a
+# symlink into the (image-discarded) /var. The daemon creates /opt/cato -> /var/opt/cato itself
+# at first run, which is where mutable client state belongs on bootc.
+# The RPM's %post enables cato-client.service and cato-dem.service via multi-user.target.wants.
+# CATO_RPM_SHA256 pins the rolling "latest" artifact for reproducible builds; empty = unpinned.
+ARG CATO_RPM_URL=https://clientdownload.catonetworks.com/public/clients/cato-client-install.rpm
+ARG CATO_RPM_SHA256=
+RUN curl -fsSL --proto '=https' --tlsv1.2 -o /tmp/cato-client-install.rpm "$CATO_RPM_URL" \
+ && { [ -z "$CATO_RPM_SHA256" ] || echo "${CATO_RPM_SHA256}  /tmp/cato-client-install.rpm" | sha256sum -c -; } \
+ && dnf install -y /tmp/cato-client-install.rpm \
+ && rm -f /tmp/cato-client-install.rpm \
+ && dnf clean all \
+ && test -x /usr/sbin/cato-clientd \
+ && test -x /usr/bin/cato-sdp
+
 # Maintain labels
 LABEL org.opencontainers.image.source="https://github.com/zirconium-dev/zirconium-extend"
 LABEL org.opencontainers.image.description="Extended zirconium OCI image"
