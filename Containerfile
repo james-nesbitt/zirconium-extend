@@ -37,6 +37,17 @@ RUN curl -fsSL --proto '=https' --tlsv1.2 -o /tmp/cato-client-install.rpm "$CATO
  && test -x /usr/sbin/cato-clientd \
  && test -x /usr/bin/cato-sdp
 
+# cato-clientd with --use-systemd-resolv 1 reads, backs up and rewrites /etc/systemd/resolved.conf.
+# Fedora ships only /usr/lib/systemd/resolved.conf and ostree materialises no /etc copy, so the
+# client aborts an already-established tunnel:
+#   [E] backup_dns_config:303   Failed to read /etc/systemd/resolved.conf
+#   [E] cato_setup_dns_config:811  error backing up dns servers
+#   [E] utAuthenticatedUpdateNetworkParamet:636  Failed to DNS  -> STOP, ERR_USER_INTERRUPTED
+# The shipped file is entirely commented defaults, so materialising it in /etc changes no
+# resolver behaviour; it only gives the client a file to edit.
+RUN [ -e /etc/systemd/resolved.conf ] \
+ || cp -a /usr/lib/systemd/resolved.conf /etc/systemd/resolved.conf
+
 # Maintain labels
 LABEL org.opencontainers.image.source="https://github.com/zirconium-dev/zirconium-extend"
 LABEL org.opencontainers.image.description="Extended zirconium OCI image"
