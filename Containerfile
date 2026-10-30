@@ -20,6 +20,21 @@ RUN curl -fsSL https://copr.fedorainfracloud.org/coprs/wezfurlong/wezterm-nightl
  && dnf install -y wezterm \
  && dnf clean all
 
+# Dux Files (dfiles) — the standalone file manager released alongside DMS 2.0.
+# Not in the zirconium base nor terra; it is built in the duxlabs/dux-repo COPR
+# (dux-files-2.0.0-1, chroot fedora-45-x86_64). Only dux-files is named: that COPR
+# also carries quickshell, and the base image's quickshell already satisfies the
+# dependency, so nothing is swapped out from under DMS.
+# ffmpegthumbnailer is the one optional helper the dfiles daemon probes on PATH that
+# the base lacks (video thumbnails); poppler-utils, gvfs, udisks2 and bubblewrap are
+# already in the base image, so PDF thumbnails, devices, network shares and sandboxed
+# thumbnailers work without further packages.
+RUN curl -fsSL https://copr.fedorainfracloud.org/coprs/duxlabs/dux-repo/repo/fedora-$(rpm -E %fedora)/duxlabs-dux-repo-fedora-$(rpm -E %fedora).repo \
+    -o /etc/yum.repos.d/duxlabs-dux-repo.repo \
+ && dnf install -y dux-files ffmpegthumbnailer \
+ && dnf clean all \
+ && test -x /usr/bin/dfiles
+
 # Cato Networks SDP client (VPN). Verified /usr-only payload (rpm -ql cato_client-5.8.1-7658):
 # /usr/lib/cato, /usr/bin/cato-sdp, /usr/sbin/{cato-clientd,cato-demd}, /etc/ld.so.conf.d and a
 # CA anchor — nothing in /opt, so no relocation is needed on an ostree root where /opt is a
