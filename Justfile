@@ -21,13 +21,14 @@ sync:
     grep -qxF 'mkosi.profiles/jnesbitt' "$exclude" 2>/dev/null \
         || echo 'mkosi.profiles/jnesbitt' >> "$exclude"
 
-# Confirms WithRecommends=false and RemovePackages= took effect, without building.
+# Confirms the profile merged: our RemovePackages= list and added packages.
 cat-config: sync
     mkosi -C upstream --profile={{profiles}} cat-config --debug
 
-# Full image build.
+# Full image build. sudo resets PATH via secure_path, so a user-local mkosi
+# (uv tool install) is not found by a bare `sudo mkosi`; resolve it first.
 build: sync
-    sudo mkosi -C upstream -B -ff --debug --profile={{profiles}}
+    sudo "$(command -v mkosi)" -C upstream -B -ff --debug --profile={{profiles}}
 
 # Load the built OCI directory into podman as {{image}}.
 load:
