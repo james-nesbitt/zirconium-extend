@@ -1,8 +1,12 @@
 name: Build and Push OCI Image
 
+# Weekly, not daily. A full mkosi build is ~40-60 min of runner time (tools
+# tree + ~1900 packages + rechunk) rather than the few minutes a derived
+# `FROM` layer took, and the inputs that actually move — upstream zirconium,
+# pinned as a submodule — only move when we bump them deliberately.
 on:
   schedule:
-    - cron: '0 0 * * *'  # Daily at midnight
+    - cron: '0 3 * * 1'  # Mondays, 03:00 UTC
   push:
     branches:
       - master
@@ -12,81 +16,106 @@ on:
   workflow_dispatch:
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: zirconium-extend
+  IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
 
 jobs:
   build-and-push:
-    runs-on: ubuntu-latest
+    name: Build and push image
+    runs-on: ubuntu-26.04
+    timeout-minutes: 90
     permissions:
       contents: read
       packages: write
+      id-token: write
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
+      # mkosi builds a Fedora tools tree and a full image; the default runner
+      # image does not leave enough room.
+      - name: Free disk space
+        uses: hastd/free-disk-space@v0.1.2
+        with:
+          exclude: |
+            /opt/hostedtoolcache/Python
+          skip-if-available: "64G"
 
-      - name: Compute image tags and labels
+      # upstream/ carries its own submodules (assets, zdots), hence recursive.
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      # upstream's mkosi.conf sets MinimumVersion=26~devel — no tagged mkosi
+      # release satisfies it, so track main.
+      - name: Install mkosi
+        uses: systemd/mkosi@main
+
+      - name: Install just
+        uses: extractions/setup-just@v3
+
+      - name: Compute image tags
         id: meta
         shell: bash
         run: |
-          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
-          TAGS=""
+          set -euo pipefail
+          IMAGE="${IMAGE_REGISTRY}/${IMAGE_NAME}"
+          DATE="$(date -u +%Y%m%d)"
           case "${{ github.event_name }}" in
             schedule|workflow_dispatch)
-              TAGS="${IMAGE}:nightly"
+              TAGS="${IMAGE}:latest ${IMAGE}:${DATE}"
               ;;
             push)
-              BRANCH="${{ github.ref_name }}"
-              BRANCH="${BRANCH//\//-}"
-              SHA="${{ github.sha }}"
-              TAGS="${IMAGE}:${BRANCH} ${IMAGE}:sha-${SHA}"
-              if [[ "${{ github.ref }}" == "refs/heads/master" ]]; then
-                TAGS="${TAGS} ${IMAGE}:latest"
-              fi
+              TAGS="${IMAGE}:latest ${IMAGE}:${DATE} ${IMAGE}:sha-${{ github.sha }}"
               ;;
             pull_request)
-              PR="${{ github.event.pull_request.number }}"
-              BRANCH="${{ github.head_ref }}"
-              BRANCH="${BRANCH//\//-}"
-              SHA="${{ github.event.pull_request.head.sha }}"
-              TAGS="${IMAGE}:pr-${PR} ${IMAGE}:${BRANCH} ${IMAGE}:sha-${SHA}"
+              TAGS="${IMAGE}:pr-${{ github.event.pull_request.number }}"
               ;;
           esac
-          # newline-separated for buildah-build, space-separated for display
-          printf 'tags<<EOF\n%s\nEOF\n' "$(echo $TAGS | tr ' ' '\n')" >> "$GITHUB_OUTPUT"
-          # OCI standard labels
-          printf 'labels<<EOF\n%s\nEOF\n' "\
-          org.opencontainers.image.source=https://github.com/${{ github.repository }}
-          org.opencontainers.image.revision=${{ github.sha }}
-          org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+          printf 'tags=%s\n' "${TAGS}" >> "$GITHUB_OUTPUT"
 
-      - name: Build OCI image
-        id: build
-        uses: redhat-actions/buildah-build@v2.13
-        with:
-          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          containerfiles: ./Containerfile
-          oci: true
+      # Cheap guard: proves the profile merged as intended (WithRecommends
+      # flipped, RemovePackages applied) before spending an hour on a build.
+      - name: Render configuration
+        run: just cat-config
 
-      - name: Push OCI image
-        uses: redhat-actions/push-to-registry@v2.8
-        with:
-          tags: ${{ steps.build.outputs.tags }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build image
+        run: just build
+
+      - name: Load image
+        run: just load
+
+      - name: Rechunk image
+        run: just rechunk
+
+      - name: Lint image
+        run: just lint
+
+      - name: Login to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "${GITHUB_TOKEN}" | podman login -u "${{ github.actor }}" --password-stdin ghcr.io
+
+      - name: Push to GHCR
+        if: github.event_name != 'pull_request'
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          set -euo pipefail
+          for tag in ${TAGS}; do
+            podman push --retry 3 --compression-format=zstd \
+              "localhost/${IMAGE_NAME}:latest" "${tag}"
+          done
 
   cleanup-old-tags:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: build-and-push
     if: github.event_name != 'pull_request'
     permissions:
       packages: write
 
     steps:
-      - name: Delete old SHA tags
+      - name: Delete old date and SHA tags
         uses: actions/delete-package-versions@v5.0.0
         with:
           package-name: ${{ github.event.repository.name }}
@@ -94,4 +123,4 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           delete-only-untagged-versions: false
           min-versions-to-keep: 5
-          ignore-versions: '^(latest|nightly|master|pr-\d+)$'
+          ignore-versions: '^(latest|master|pr-\d+)$'

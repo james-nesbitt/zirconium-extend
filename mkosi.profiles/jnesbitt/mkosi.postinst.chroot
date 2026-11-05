@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Runs inside the image chroot. This profile is listed last on the mkosi
+# command line, so this script runs after upstream's own postinst scripts —
+# in particular after the one that rewrites /usr/lib/os-release.
+
+set -xeuo pipefail
+
+# Factory source for the /etc copy that 50-cato-resolved.conf materialises at
+# boot. Taken from the stock file so the contents track Fedora's.
+install -Dpm0644 /usr/lib/systemd/resolved.conf \
+    /usr/share/factory/etc/systemd/resolved.conf
+
+sed -i 's|^VERSION_CODENAME=.*|VERSION_CODENAME="jnesbitt"|' /usr/lib/os-release
+
+# Fail the build rather than ship an image missing something load-bearing.
+test -x /usr/bin/dfiles
+test -x /usr/bin/ghostty
+test -x /usr/bin/mise
+test -x /usr/bin/virt-manager
+test -x /usr/bin/zsh
+test -x /usr/bin/cato-sdp
+test -x /usr/sbin/cato-clientd
+# fcitx5 is deliberately kept while its CJK engines are removed.
+test -x /usr/bin/fcitx5
+# distrobox needs podman, never containerd.
+test -x /usr/bin/distrobox
+test -x /usr/bin/podman
